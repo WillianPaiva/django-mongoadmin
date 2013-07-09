@@ -1,3 +1,5 @@
+import logging
+
 from django import http, template
 from django.contrib.admin import ModelAdmin
 from django.contrib.admin.forms import AdminAuthenticationForm
@@ -19,6 +21,8 @@ from django.contrib.admin.sites import NotRegistered, AlreadyRegistered
 from mongoengine.base import TopLevelDocumentMetaclass
 
 from mongoadmin import actions, DocumentAdmin
+
+LOGGER = logging.getLogger(__name__)
 
 LOGIN_FORM_KEY = 'this_is_the_login_form'
 
@@ -96,7 +100,11 @@ class AdminSite(object):
                 admin_class = type("%sAdmin" % model.__name__, (admin_class,), options)
 
             # Validate (which might be a no-op)
-            validate(admin_class, model)
+            try:
+                validate(admin_class, model)
+            except Exception, e:
+               LOGGER.exception("validation failed")
+
 
             # Instantiate the admin class to save in the registry
             self._registry[model] = admin_class(model, self)
@@ -251,12 +259,12 @@ class AdminSite(object):
                 app_label = model._meta.app_label
             except AttributeError:
                 app_label = model_admin.opts.app_label
-                
+
             try:
                 module_name = model._meta.module_name
             except AttributeError:
                 module_name = model_admin.opts.module_name
-            
+
             urlpatterns += patterns('',
                 url(r'^%s/%s/' % (app_label, module_name),
                     include(model_admin.urls))
